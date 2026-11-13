@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum CohortState {
+  OPEN
+  GRADING
+  REVIEW
+  PUBLISHED
+  CLOSED
+}
+
+enum SubmissionState {
+  DRAFT
+  SUBMITTED
+}
+
+enum AssignmentState {
+  REVIEW
+  CONFIRMED
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String
+  passwordHash String
+  role         Role         @default(STUDENT)
+  createdAt    DateTime     @default(now())
+  courses      Course[]
+  enrollments  Enrollment[]
+}
+
+model Course {
+  id          String   @id @default(cuid())
+  name        String
+  field       String
+  description String
+  goal        String
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id])
+  cohorts     Cohort[]
+  createdAt   DateTime @default(now())
+
+  @@index([ownerId])
+}
+
+model Cohort {
+  id                    String       @id @default(cuid())
+  courseId              String
+  course                Course       @relation(fields: [courseId], references: [id])
+  name                  String
+  state                 CohortState  @default(OPEN)
+  joinCode              String       @unique
+  codeActive            Boolean      @default(true)
+  joinUntil             DateTime
+  deadline              DateTime
+  instructions          String
+  criteriaVersion       Int          @default(1)
+  criteria              Json
+  stages                Json
+  targetSize            Int          @default(5)
+  minSize               Int          @default(3)
+  maxSize               Int          @default(6)
+  publishedAssignmentId String?
+  resultsPublished      Boolean      @default(false)
+  enrollments           Enrollment[]
+  assignments           Assignment[]
+  audits                Audit[]
+  createdAt             DateTime     @default(now())
+}
+
+model Enrollment {
+  id                String          @id @default(cuid())
+  cohortId          String
+  cohort            Cohort          @relation(fields: [cohortId], references: [id])
+  userId            String
+  user              User            @relation(fields: [userId], references: [id])
+  answer            String          @default("")
+  submissionState   SubmissionState @default(DRAFT)
+  submittedAt       DateTime?
+  survey            Json?
+  surveyVersion     Int?
+  scores            Json?
+  feedback          String          @default("")
+  gradedAt          DateTime?
+  graderId          String?
+  resultVersion     Int             @default(0)
+  criteriaVersion   Int
+  createdAt         DateTime        @default(now())
+
+  @@unique([cohortId, userId])
+  @@index([userId])
+}
+
+model Assignment {
+  id               String          @id @default(cuid())
+  cohortId         String
+  cohort           Cohort          @relation(fields: [cohortId], references: [id])
+  state            AssignmentState @default(REVIEW)
+  algorithmVersion String
+  snapshot         Json
+  groups           Json
+  held             Json
+  reason           String
+  createdBy        String
+  confirmedBy      String?
+  confirmedAt      DateTime?
+  createdAt        DateTime        @default(now())
+
+  @@index([cohortId, createdAt])
+}
+
+model Audit {
+  id        String   @id @default(cuid())
+  cohortId  String
+  cohort    Cohort   @relation(fields: [cohortId], references: [id])
+  actorId   String
+  action    String
+  detail    Json
+  createdAt DateTime @default(now())
+
+  @@index([cohortId, createdAt])
+}
+
+model RateLimit {
+  key       String   @id
+  count     Int
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
