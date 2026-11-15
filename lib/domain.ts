@@ -404,3 +404,23 @@ export function validateGroups(
     throw new Error("그룹별 최소·최대 인원 조건을 만족해야 합니다.");
   }
 }
+
+/**
+ * 객체 키 순서와 무관한 결정적 JSON 직렬화.
+ * PostgreSQL jsonb는 저장 시 객체 키 순서를 재정렬하므로,
+ * 저장된 Json 값과 메모리 값을 비교할 때 JSON.stringify를 직접 쓰면 안 된다.
+ */
+export function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => canonicalJson(item ?? null)).join(",")}]`;
+  }
+  if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .filter((key) => record[key] !== undefined)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}

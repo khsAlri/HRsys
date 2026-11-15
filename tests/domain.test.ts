@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canonicalJson,
   capacities,
   createGroups,
   defaultCriteria,
@@ -214,5 +215,36 @@ describe("그룹 배정", () => {
     const input = candidates(6);
     delete input[0].scores.practice;
     expect(() => createGroups(input, defaultCriteria, limits)).toThrow();
+  });
+});
+
+describe("canonicalJson", () => {
+  it("jsonb처럼 키 순서가 바뀐 스냅샷도 같은 값으로 비교한다", () => {
+    const built = {
+      criteriaVersion: 1,
+      surveyVersion: 1,
+      limits: { target: 5, min: 3, max: 6 },
+      inputs: [
+        { id: "a", scores: { concept: 40, practice: 35 }, survey: [1, 2, 3, 4], resultVersion: 1 }
+      ]
+    };
+    // PostgreSQL jsonb가 반환하는 순서: 키 길이 → 바이트 순
+    const stored = {
+      inputs: [
+        { id: "a", scores: { concept: 40, practice: 35 }, survey: [1, 2, 3, 4], resultVersion: 1 }
+      ],
+      limits: { max: 6, min: 3, target: 5 },
+      surveyVersion: 1,
+      criteriaVersion: 1
+    };
+
+    expect(JSON.stringify(stored)).not.toBe(JSON.stringify(built));
+    expect(canonicalJson(stored)).toBe(canonicalJson(built));
+  });
+
+  it("값이나 배열 순서가 다르면 다른 결과를 낸다", () => {
+    expect(canonicalJson({ a: [1, 2] })).not.toBe(canonicalJson({ a: [2, 1] }));
+    expect(canonicalJson({ a: { b: 1 } })).not.toBe(canonicalJson({ a: { b: 2 } }));
+    expect(canonicalJson({ a: 1, b: undefined })).toBe(canonicalJson({ a: 1 }));
   });
 });

@@ -19,6 +19,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import {
   ALGORITHM_VERSION,
   SURVEY_VERSION,
+  canonicalJson,
   createGroups,
   surveySchema,
   validateConfig,
@@ -539,7 +540,7 @@ export async function publishAssignment(form: FormData): Promise<never> {
         const snapshot = assignment.snapshot as unknown as Snapshot;
         const current = assignmentInput(cohort);
 
-        if (JSON.stringify(snapshot) !== JSON.stringify(current.snapshot)) {
+        if (canonicalJson(snapshot) !== canonicalJson(current.snapshot)) {
           throw new Error("배정 생성 이후 입력 결과가 변경되었습니다. 새 배정안을 생성하세요.");
         }
 
